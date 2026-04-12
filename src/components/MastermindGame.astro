@@ -1,16 +1,7 @@
 ---
 // MastermindGame.astro
 // Main game component. All game logic runs client-side via inline <script>.
-const COLORS = [
-  { id: 'red',    label: 'Rojo',     bg: '#ef4444' },
-  { id: 'blue',   label: 'Azul',     bg: '#3b82f6' },
-  { id: 'green',  label: 'Verde',    bg: '#22c55e' },
-  { id: 'yellow', label: 'Amarillo', bg: '#eab308' },
-  { id: 'purple', label: 'Morado',   bg: '#a855f7' },
-  { id: 'orange', label: 'Naranja',  bg: '#f97316' },
-];
-const CODE_LENGTH  = 4;
-const MAX_ATTEMPTS = 10;
+import { COLORS, CODE_LENGTH, MAX_ATTEMPTS } from '../scripts/mastermind.js';
 ---
 
 <!-- ===== Page shell ===== -->
@@ -141,61 +132,25 @@ const MAX_ATTEMPTS = 10;
 </main>
 
 <script>
-// ─── Constants ─────────────────────────────────────────────────────────────────
-const COLORS = [
-  { id: 'red',    label: 'Rojo',     bg: '#ef4444' },
-  { id: 'blue',   label: 'Azul',     bg: '#3b82f6' },
-  { id: 'green',  label: 'Verde',    bg: '#22c55e' },
-  { id: 'yellow', label: 'Amarillo', bg: '#eab308' },
-  { id: 'purple', label: 'Morado',   bg: '#a855f7' },
-  { id: 'orange', label: 'Naranja',  bg: '#f97316' },
-];
-const CODE_LENGTH   = 4;
-const MAX_ATTEMPTS  = 10;
+import {
+  COLORS,
+  CODE_LENGTH,
+  MAX_ATTEMPTS,
+  generateSecret,
+  evaluateGuess,
+} from '../scripts/mastermind.js';
 
 const COLOR_MAP = Object.fromEntries(COLORS.map(c => [c.id, c]));
 
-// ─── Game logic (pure functions) ───────────────────────────────────────────────
-
-function generateSecret() {
-  return Array.from({ length: CODE_LENGTH }, () =>
-    COLORS[Math.floor(Math.random() * COLORS.length)].id
-  );
-}
-
-function evaluateGuess(secret, guess) {
-  let exact = 0;
-  const secretRemaining = [];
-  const guessRemaining  = [];
-
-  for (let i = 0; i < CODE_LENGTH; i++) {
-    if (secret[i] === guess[i]) {
-      exact++;
-    } else {
-      secretRemaining.push(secret[i]);
-      guessRemaining.push(guess[i]);
-    }
-  }
-
-  let partial = 0;
-  for (const color of guessRemaining) {
-    const idx = secretRemaining.indexOf(color);
-    if (idx !== -1) {
-      partial++;
-      secretRemaining.splice(idx, 1);
-    }
-  }
-
-  return { exact, partial };
-}
+// ─── Game state ────────────────────────────────────────────────────────────────
 
 function createInitialState() {
   return {
-    secret:   generateSecret(),
-    attempts: [],
-    status:   'playing',   // 'playing' | 'won' | 'lost'
-    current:  Array(CODE_LENGTH).fill(null),  // current peg selection
-    activeSlot: 0,         // next slot to fill
+    secret:     generateSecret(),
+    attempts:   [],
+    status:     'playing',              // 'playing' | 'won' | 'lost'
+    current:    Array(CODE_LENGTH).fill(null),  // current peg selection
+    activeSlot: 0,                      // next slot to fill
   };
 }
 

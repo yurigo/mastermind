@@ -1,0 +1,390 @@
+---
+// MastermindGame.astro
+// Main game component. All game logic runs client-side via inline <script>.
+import { COLORS, CODE_LENGTH, MAX_ATTEMPTS } from '../scripts/mastermind.js';
+---
+
+<!-- ===== Page shell ===== -->
+<main class="container mx-auto max-w-2xl px-4 py-8 flex flex-col gap-6">
+
+  <!-- Title -->
+  <header class="text-center">
+    <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-lg">
+      🎯 Mastermind
+    </h1>
+    <p class="mt-2 text-purple-200 text-sm sm:text-base">
+      Adivina la combinación secreta de 4 colores en {MAX_ATTEMPTS} intentos
+    </p>
+  </header>
+
+  <!-- How to play (collapsible) -->
+  <details class="bg-white/10 backdrop-blur rounded-2xl p-4 text-sm text-purple-100 cursor-pointer select-none">
+    <summary class="font-semibold text-white text-base list-none flex items-center gap-2">
+      <span>📖</span> Cómo jugar
+    </summary>
+    <ul class="mt-3 space-y-1 list-disc list-inside marker:text-purple-400">
+      <li>La máquina genera una combinación secreta de <strong>4 colores</strong>.</li>
+      <li>Selecciona 4 colores y pulsa <strong>Enviar</strong>.</li>
+      <li>
+        Después de cada intento verás pistas:
+        <ul class="ml-4 mt-1 list-disc list-inside space-y-0.5">
+          <li><span class="text-red-400 font-bold">●</span> Rojo = color correcto, posición correcta.</li>
+          <li><span class="text-white font-bold">○</span> Blanco = color correcto, posición incorrecta.</li>
+        </ul>
+      </li>
+      <li>¡Tienes <strong>{MAX_ATTEMPTS} intentos</strong> para acertar!</li>
+    </ul>
+  </details>
+
+  <!-- Attempt counter -->
+  <div class="flex justify-between items-center px-1">
+    <p class="text-sm text-purple-200">
+      Intento <span id="attemptCounter" class="font-bold text-white">1</span> de {MAX_ATTEMPTS}
+    </p>
+    <button
+      id="restartBtn"
+      class="rounded-xl bg-purple-600 hover:bg-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-400 px-4 py-1.5 text-sm font-semibold transition-colors"
+    >
+      🔄 Nueva partida
+    </button>
+  </div>
+
+  <!-- Board (guess history) -->
+  <section
+    id="board"
+    aria-label="Historial de intentos"
+    class="flex flex-col gap-3"
+  >
+    <!-- Rows are injected dynamically -->
+  </section>
+
+  <!-- Current guess input -->
+  <section
+    id="inputSection"
+    aria-label="Selecciona tus colores"
+    class="bg-white/10 backdrop-blur rounded-2xl p-5 flex flex-col gap-4"
+  >
+    <!-- Peg slots -->
+    <div class="flex justify-center gap-3" id="pegSlots" role="group" aria-label="Posiciones del intento">
+      {Array.from({ length: CODE_LENGTH }).map((_, i) => (
+        <button
+          class="peg-slot w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-dashed border-white/30 bg-white/5 hover:border-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all flex items-center justify-center text-xs text-white/40"
+          data-slot={i}
+          aria-label={`Posición ${i + 1} (vacía)`}
+        >
+          {i + 1}
+        </button>
+      ))}
+    </div>
+
+    <!-- Color palette -->
+    <div class="flex flex-wrap justify-center gap-3" role="group" aria-label="Paleta de colores">
+      {COLORS.map(c => (
+        <button
+          class="color-btn w-11 h-11 sm:w-12 sm:h-12 rounded-full border-2 border-white/20 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/60 focus:scale-110 transition-transform shadow-lg"
+          style={`background-color: ${c.bg};`}
+          data-color={c.id}
+          aria-label={c.label}
+          title={c.label}
+        />
+      ))}
+    </div>
+
+    <!-- Validation message -->
+    <p id="validationMsg" class="text-center text-red-300 text-sm min-h-[1.25rem]" role="alert" aria-live="polite"></p>
+
+    <!-- Send button -->
+    <button
+      id="submitBtn"
+      class="w-full sm:w-auto sm:mx-auto rounded-2xl bg-purple-600 hover:bg-purple-500 active:scale-95 focus:outline-none focus:ring-2 focus:ring-purple-400 px-8 py-3 font-bold text-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      ✅ Enviar intento
+    </button>
+  </section>
+
+  <!-- Game-over message -->
+  <div
+    id="gameOverPanel"
+    class="hidden bg-white/10 backdrop-blur rounded-2xl p-6 text-center flex flex-col gap-3"
+    aria-live="assertive"
+  >
+    <p id="gameOverTitle" class="text-2xl font-extrabold"></p>
+    <p id="gameOverMsg" class="text-purple-200 text-sm"></p>
+    <div>
+      <p class="text-sm text-purple-300 mb-2">Combinación secreta:</p>
+      <div id="secretReveal" class="flex justify-center gap-2"></div>
+    </div>
+  </div>
+
+  <!-- Color legend -->
+  <section class="bg-white/5 rounded-2xl p-4" aria-label="Leyenda de colores">
+    <h2 class="text-xs font-semibold text-purple-300 uppercase tracking-widest mb-3">Colores disponibles</h2>
+    <div class="flex flex-wrap gap-3">
+      {COLORS.map(c => (
+        <div class="flex items-center gap-1.5">
+          <span class="w-5 h-5 rounded-full inline-block border border-white/20" style={`background-color: ${c.bg};`} aria-hidden="true"></span>
+          <span class="text-xs text-purple-200">{c.label}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+
+</main>
+
+<script>
+import {
+  COLORS,
+  CODE_LENGTH,
+  MAX_ATTEMPTS,
+  generateSecret,
+  evaluateGuess,
+} from '../scripts/mastermind.js';
+
+const COLOR_MAP = Object.fromEntries(COLORS.map(c => [c.id, c]));
+
+// ─── Game state ────────────────────────────────────────────────────────────────
+
+function createInitialState() {
+  return {
+    secret:     generateSecret(),
+    attempts:   [],
+    status:     'playing',              // 'playing' | 'won' | 'lost'
+    current:    Array(CODE_LENGTH).fill(null),  // current peg selection
+    activeSlot: 0,                      // next slot to fill
+  };
+}
+
+// ─── State ─────────────────────────────────────────────────────────────────────
+let state = createInitialState();
+
+// ─── DOM references ────────────────────────────────────────────────────────────
+const board           = document.getElementById('board');
+const pegSlots        = document.querySelectorAll('.peg-slot');
+const colorBtns       = document.querySelectorAll('.color-btn');
+const submitBtn       = document.getElementById('submitBtn');
+const restartBtn      = document.getElementById('restartBtn');
+const validationMsg   = document.getElementById('validationMsg');
+const attemptCounter  = document.getElementById('attemptCounter');
+const gameOverPanel   = document.getElementById('gameOverPanel');
+const gameOverTitle   = document.getElementById('gameOverTitle');
+const gameOverMsg     = document.getElementById('gameOverMsg');
+const secretReveal    = document.getElementById('secretReveal');
+const inputSection    = document.getElementById('inputSection');
+
+// ─── Rendering helpers ─────────────────────────────────────────────────────────
+
+function colorDot(colorId, size = 'w-8 h-8') {
+  const c = COLOR_MAP[colorId];
+  return `<span
+    class="${size} rounded-full inline-block border border-white/20 shadow"
+    style="background-color:${c.bg}"
+    aria-label="${c.label}"
+    title="${c.label}"
+  ></span>`;
+}
+
+function pegDot(type) {
+  // type: 'exact' | 'partial' | 'empty'
+  const classes = {
+    exact:   'bg-red-500 border-red-300',
+    partial: 'bg-white border-white/60',
+    empty:   'bg-white/10 border-white/10',
+  };
+  const labels  = { exact: 'Exacto', partial: 'Parcial', empty: 'Vacío' };
+  return `<span
+    class="w-4 h-4 rounded-full inline-block border ${classes[type]}"
+    aria-label="${labels[type]}"
+    title="${labels[type]}"
+  ></span>`;
+}
+
+function renderBoard() {
+  board.innerHTML = '';
+  state.attempts.forEach((attempt, idx) => {
+    const row = document.createElement('div');
+    row.className = [
+      'flex items-center gap-3 sm:gap-4 bg-white/10 backdrop-blur',
+      'rounded-2xl px-4 py-3 animate-fadeIn',
+    ].join(' ');
+
+    // Attempt number
+    const num = document.createElement('span');
+    num.className = 'text-purple-300 text-sm w-5 text-right shrink-0';
+    num.textContent = idx + 1;
+    row.appendChild(num);
+
+    // Color pegs
+    const pegs = document.createElement('div');
+    pegs.className = 'flex gap-2 flex-1';
+    pegs.innerHTML = attempt.guess.map(id => colorDot(id)).join('');
+    row.appendChild(pegs);
+
+    // Feedback pegs (2×2 grid)
+    const feedback = document.createElement('div');
+    feedback.className = 'grid grid-cols-2 gap-1 shrink-0';
+    feedback.setAttribute('aria-label', `${attempt.exact} exactos, ${attempt.partial} parciales`);
+
+    const pegsTotal = attempt.exact + attempt.partial;
+    const types = [
+      ...Array(attempt.exact).fill('exact'),
+      ...Array(attempt.partial).fill('partial'),
+      ...Array(CODE_LENGTH - pegsTotal).fill('empty'),
+    ];
+    feedback.innerHTML = types.map(pegDot).join('');
+    row.appendChild(feedback);
+
+    // Verbal hint
+    const hint = document.createElement('span');
+    hint.className = 'text-xs text-purple-300 w-24 text-right shrink-0 hidden sm:block';
+    hint.textContent = `${attempt.exact}🔴 ${attempt.partial}⚪`;
+    row.appendChild(hint);
+
+    board.appendChild(row);
+  });
+}
+
+function renderSlots() {
+  pegSlots.forEach((slot, i) => {
+    const colorId = state.current[i];
+    if (colorId) {
+      const c = COLOR_MAP[colorId];
+      slot.style.backgroundColor = c.bg;
+      slot.style.borderStyle = 'solid';
+      slot.style.borderColor = 'rgba(255,255,255,0.4)';
+      slot.textContent = '';
+      slot.setAttribute('aria-label', `Posición ${i + 1}: ${c.label}`);
+    } else {
+      slot.style.backgroundColor = '';
+      slot.style.borderStyle = 'dashed';
+      slot.style.borderColor = '';
+      slot.textContent = i + 1;
+      slot.setAttribute('aria-label', `Posición ${i + 1} (vacía)`);
+    }
+
+    // Highlight active slot
+    slot.classList.toggle('ring-2',       i === state.activeSlot && state.status === 'playing');
+    slot.classList.toggle('ring-white',   i === state.activeSlot && state.status === 'playing');
+    slot.classList.toggle('ring-offset-2',i === state.activeSlot && state.status === 'playing');
+    slot.classList.toggle('ring-offset-transparent', i === state.activeSlot && state.status === 'playing');
+  });
+}
+
+function renderCounter() {
+  const next = Math.min(state.attempts.length + 1, MAX_ATTEMPTS);
+  attemptCounter.textContent = state.status === 'playing' ? next : state.attempts.length;
+}
+
+function showGameOver() {
+  if (state.status === 'playing') {
+    gameOverPanel.classList.add('hidden');
+    return;
+  }
+
+  gameOverPanel.classList.remove('hidden');
+  if (state.status === 'won') {
+    gameOverTitle.textContent = '🎉 ¡Has ganado!';
+    gameOverMsg.textContent   = `¡Adivinaste la combinación en ${state.attempts.length} intento${state.attempts.length > 1 ? 's' : ''}!`;
+  } else {
+    gameOverTitle.textContent = '😞 ¡Has perdido!';
+    gameOverMsg.textContent   = 'Agotaste todos los intentos. ¡Suerte la próxima vez!';
+  }
+
+  secretReveal.innerHTML = state.secret.map(id => colorDot(id, 'w-10 h-10')).join('');
+  inputSection.classList.add('opacity-40', 'pointer-events-none');
+}
+
+function render() {
+  renderBoard();
+  renderSlots();
+  renderCounter();
+  showGameOver();
+  validationMsg.textContent = '';
+}
+
+// ─── Event handlers ────────────────────────────────────────────────────────────
+
+/** Click on a color palette button — fills the active slot */
+colorBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (state.status !== 'playing') return;
+
+    const colorId = btn.dataset.color;
+    // Place color in the active slot, advance to next empty slot
+    state.current[state.activeSlot] = colorId;
+
+    // Find next empty slot (or keep at last if all filled)
+    let next = state.activeSlot + 1;
+    while (next < CODE_LENGTH && state.current[next] !== null) next++;
+    state.activeSlot = Math.min(next, CODE_LENGTH - 1);
+
+    renderSlots();
+    validationMsg.textContent = '';
+  });
+});
+
+/** Click on a peg slot — select that slot as active (or clear it) */
+pegSlots.forEach(slot => {
+  slot.addEventListener('click', () => {
+    if (state.status !== 'playing') return;
+    const i = parseInt(slot.dataset.slot, 10);
+    if (state.current[i] !== null) {
+      // Clear this slot
+      state.current[i] = null;
+      state.activeSlot = i;
+    } else {
+      state.activeSlot = i;
+    }
+    renderSlots();
+  });
+});
+
+/** Submit guess */
+submitBtn.addEventListener('click', () => {
+  if (state.status !== 'playing') return;
+
+  const filled = state.current.filter(Boolean);
+  if (filled.length < CODE_LENGTH) {
+    validationMsg.textContent = `⚠️ Selecciona los ${CODE_LENGTH} colores antes de enviar.`;
+    return;
+  }
+
+  const guess = [...state.current];
+  const result = evaluateGuess(state.secret, guess);
+
+  state.attempts = [...state.attempts, { guess, ...result }];
+  state.current  = Array(CODE_LENGTH).fill(null);
+  state.activeSlot = 0;
+
+  if (result.exact === CODE_LENGTH) {
+    state.status = 'won';
+  } else if (state.attempts.length >= MAX_ATTEMPTS) {
+    state.status = 'lost';
+  }
+
+  // Animate the board
+  render();
+  // Scroll last row into view
+  board.lastChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+
+/** Restart */
+restartBtn.addEventListener('click', () => {
+  state = createInitialState();
+  inputSection.classList.remove('opacity-40', 'pointer-events-none');
+  render();
+  board.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+render();
+</script>
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0);   }
+  }
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease both;
+  }
+</style>

@@ -387,4 +387,10 @@ render();
   .animate-fadeIn {
     animation: fadeIn 0.3s ease both;
   }
+
+  /* Prevent iOS Safari double-tap zoom on interactive buttons */
+  .color-btn,
+  .peg-slot {
+    touch-action: manipulation;
+  }
 </style>

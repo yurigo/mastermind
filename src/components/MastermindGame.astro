@@ -16,6 +16,12 @@ import { COLORS, CODE_LENGTH, MAX_ATTEMPTS } from '../scripts/mastermind.js';
     <p class="mt-2 text-purple-200 text-sm sm:text-base">
       Adivina la combinación secreta de 4 colores en {MAX_ATTEMPTS} intentos
     </p>
+    <a
+      href="/history"
+      class="inline-block mt-3 text-xs text-purple-300 hover:text-white underline underline-offset-2 transition-colors"
+    >
+      📋 Ver historial de partidas
+    </a>
   </header>
 
   <!-- How to play (collapsible) -->
@@ -115,6 +121,12 @@ import { COLORS, CODE_LENGTH, MAX_ATTEMPTS } from '../scripts/mastermind.js';
       <p class="text-sm text-purple-300 mb-2">Combinación secreta:</p>
       <div id="secretReveal" class="flex justify-center gap-2"></div>
     </div>
+    <a
+      href="/history"
+      class="mt-1 text-xs text-purple-300 hover:text-white underline underline-offset-2 transition-colors"
+    >
+      📋 Ver historial de partidas
+    </a>
   </div>
 
   <!-- Color legend -->
@@ -140,6 +152,7 @@ import {
   generateSecret,
   evaluateGuess,
 } from '../scripts/mastermind.js';
+import { createSnapshot, saveSnapshot } from '../scripts/history.js';
 
 const COLOR_MAP = Object.fromEntries(COLORS.map(c => [c.id, c]));
 
@@ -360,6 +373,10 @@ submitBtn.addEventListener('click', () => {
     state.status = 'won';
   } else if (state.attempts.length >= MAX_ATTEMPTS) {
     state.status = 'lost';
+  }
+
+  if (state.status !== 'playing') {
+    saveSnapshot(createSnapshot(state));
   }
 
   // Animate the board

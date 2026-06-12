@@ -1,0 +1,240 @@
+---
+// GameHistory.astro
+// Read-only browser of previously completed game snapshots.
+// Data is loaded client-side from localStorage so the page works as a
+// static Astro file without a server.
+import { COLORS, CODE_LENGTH } from '../scripts/mastermind.js';
+---
+
+<main class="container mx-auto max-w-2xl px-4 py-8 flex flex-col gap-6">
+
+  <!-- Header -->
+  <header class="text-center">
+    <h1 class="flex items-center justify-center gap-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-lg">
+      <img src="/mr-mime.png" alt="Icono de Mr. Mime" class="h-10 w-10 pixelated" />
+      <span>Historial de partidas</span>
+    </h1>
+    <a
+      href="/"
+      class="inline-block mt-3 text-xs text-purple-300 hover:text-white underline underline-offset-2 transition-colors"
+    >
+      ← Volver al juego
+    </a>
+  </header>
+
+  <!-- History list — populated by the script below -->
+  <section id="historyList" aria-label="Historial de partidas">
+    <p id="emptyMsg" class="text-center text-purple-300 text-sm">Cargando…</p>
+  </section>
+
+</main>
+
+<!-- Color data passed from Astro to the client script -->
+<script define:vars={{ COLORS, CODE_LENGTH }}>
+
+// ─── Rendering helpers ────────────────────────────────────────────────────────
+
+const COLOR_MAP = Object.fromEntries(COLORS.map(c => [c.id, c]));
+
+function colorDot(colorId, size = 'w-8 h-8') {
+  const c = COLOR_MAP[colorId] ?? { bg: '#888', label: colorId };
+  return `<span
+    class="${size} rounded-full inline-block border border-white/20 shadow"
+    style="background-color:${c.bg}"
+    aria-label="${c.label}"
+    title="${c.label}"
+  ></span>`;
+}
+
+function pegDot(type) {
+  const classes = {
+    exact:   'bg-red-500 border-red-300',
+    partial: 'bg-white border-white/60',
+    empty:   'bg-white/10 border-white/10',
+  };
+  const labels = { exact: 'Exacto', partial: 'Parcial', empty: 'Vacío' };
+  return `<span
+    class="w-4 h-4 rounded-full inline-block border ${classes[type]}"
+    aria-label="${labels[type]}"
+    title="${labels[type]}"
+  ></span>`;
+}
+
+function formatDate(iso) {
+  try {
+    return new Intl.DateTimeFormat('es-ES', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+// ─── Build a full game board (read-only) ────────────────────────────────────
+
+function buildBoard(snapshot) {
+  const wrap = document.createElement('div');
+  wrap.className = 'flex flex-col gap-3 mt-4';
+
+  snapshot.attempts.forEach((attempt, idx) => {
+    const row = document.createElement('div');
+    row.className = [
+      'flex items-center gap-3 sm:gap-4 bg-white/10 backdrop-blur',
+      'rounded-2xl px-4 py-3',
+    ].join(' ');
+
+    // Attempt number
+    const num = document.createElement('span');
+    num.className = 'text-purple-300 text-sm w-5 text-right shrink-0';
+    num.textContent = idx + 1;
+    row.appendChild(num);
+
+    // Color pegs
+    const pegs = document.createElement('div');
+    pegs.className = 'flex gap-2 flex-1';
+    pegs.innerHTML = attempt.guess.map(id => colorDot(id)).join('');
+    row.appendChild(pegs);
+
+    // Feedback pegs (2×2 grid)
+    const feedback = document.createElement('div');
+    feedback.className = 'grid grid-cols-2 gap-1 shrink-0';
+    feedback.setAttribute('aria-label', `${attempt.exact} exactos, ${attempt.partial} parciales`);
+
+    const pegsTotal = attempt.exact + attempt.partial;
+    const types = [
+      ...Array(attempt.exact).fill('exact'),
+      ...Array(attempt.partial).fill('partial'),
+      ...Array(CODE_LENGTH - pegsTotal).fill('empty'),
+    ];
+    feedback.innerHTML = types.map(pegDot).join('');
+    row.appendChild(feedback);
+
+    // Verbal hint
+    const hint = document.createElement('span');
+    hint.className = 'text-xs text-purple-300 w-24 text-right shrink-0 hidden sm:block';
+    hint.textContent = `${attempt.exact}🔴 ${attempt.partial}⚪`;
+    row.appendChild(hint);
+
+    wrap.appendChild(row);
+  });
+
+  // Secret reveal row
+  const secretRow = document.createElement('div');
+  secretRow.className = 'flex flex-col items-center gap-2 bg-white/5 rounded-2xl px-4 py-3 mt-2';
+  secretRow.innerHTML = `
+    <p class="text-xs text-purple-300">Combinación secreta:</p>
+    <div class="flex justify-center gap-2">${snapshot.secret.map(id => colorDot(id, 'w-10 h-10')).join('')}</div>
+  `;
+  wrap.appendChild(secretRow);
+
+  return wrap;
+}
+
+// ─── Build a single history card ─────────────────────────────────────────────
+
+function buildCard(snapshot, index) {
+  const won = snapshot.status === 'won';
+  const card = document.createElement('div');
+  card.className = 'bg-white/10 backdrop-blur rounded-2xl p-4 flex flex-col gap-2';
+
+  // Card header (always visible)
+  const header = document.createElement('button');
+  header.className = [
+    'flex items-center justify-between w-full text-left',
+    'focus:outline-none focus:ring-2 focus:ring-purple-400 rounded-xl',
+  ].join(' ');
+  header.setAttribute('aria-expanded', 'false');
+  header.setAttribute('aria-controls', `game-detail-${index}`);
+
+  const left = document.createElement('div');
+  left.className = 'flex flex-col gap-0.5';
+
+  const statusLine = document.createElement('p');
+  statusLine.className = `font-bold ${won ? 'text-green-400' : 'text-red-400'}`;
+  statusLine.textContent = won
+    ? `🎉 Victoria — ${snapshot.attemptCount} intento${snapshot.attemptCount !== 1 ? 's' : ''}`
+    : `😞 Derrota — ${snapshot.attemptCount} intento${snapshot.attemptCount !== 1 ? 's' : ''}`;
+
+  const dateLine = document.createElement('p');
+  dateLine.className = 'text-xs text-purple-300';
+  dateLine.textContent = formatDate(snapshot.date);
+
+  left.appendChild(statusLine);
+  left.appendChild(dateLine);
+
+  const arrow = document.createElement('span');
+  arrow.className = 'text-purple-300 text-lg transition-transform duration-200';
+  arrow.setAttribute('aria-hidden', 'true');
+  arrow.textContent = '▸';
+
+  header.appendChild(left);
+  header.appendChild(arrow);
+
+  // Collapsible detail section
+  const detail = document.createElement('div');
+  detail.id = `game-detail-${index}`;
+  detail.className = 'hidden';
+
+  detail.appendChild(buildBoard(snapshot));
+
+  // Toggle on click
+  header.addEventListener('click', () => {
+    const expanded = detail.classList.toggle('hidden');
+    header.setAttribute('aria-expanded', String(!expanded));
+    arrow.style.transform = expanded ? '' : 'rotate(90deg)';
+  });
+
+  card.appendChild(header);
+  card.appendChild(detail);
+
+  return card;
+}
+
+// ─── Main render ─────────────────────────────────────────────────────────────
+
+function renderHistory() {
+  const listEl  = document.getElementById('historyList');
+  const emptyEl = document.getElementById('emptyMsg');
+
+  let history = [];
+  try {
+    const raw = localStorage.getItem('mastermind_history');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) history = parsed;
+    }
+  } catch {
+    // Ignore
+  }
+
+  if (history.length === 0) {
+    emptyEl.textContent = 'Aún no hay partidas completadas. ¡Juega una y vuelve aquí!';
+    return;
+  }
+
+  emptyEl.remove();
+
+  const count = document.createElement('p');
+  count.className = 'text-xs text-purple-300 text-right mb-2';
+  count.textContent = `${history.length} partida${history.length !== 1 ? 's' : ''} guardada${history.length !== 1 ? 's' : ''}`;
+  listEl.appendChild(count);
+
+  const grid = document.createElement('div');
+  grid.className = 'flex flex-col gap-3';
+
+  history.forEach((snapshot, i) => {
+    grid.appendChild(buildCard(snapshot, i));
+  });
+
+  listEl.appendChild(grid);
+}
+
+renderHistory();
+</script>
+
+<style>
+  .pixelated {
+    image-rendering: pixelated;
+  }
+</style>

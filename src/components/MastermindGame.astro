@@ -9,8 +9,9 @@ import { COLORS, CODE_LENGTH, MAX_ATTEMPTS } from '../scripts/mastermind.js';
 
   <!-- Title -->
   <header class="text-center">
-    <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-lg">
-      🎯 Mastermind
+    <h1 class="flex items-center justify-center gap-3 text-4xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-lg">
+      <img src="/mr-mime.png" alt="Icono de Mr. Mime" class="h-12 w-12 pixelated sm:h-14 sm:w-14" />
+      <span>Mr. Mime</span>
     </h1>
     <p class="mt-2 text-purple-200 text-sm sm:text-base">
       Adivina la combinación secreta de 4 colores en {MAX_ATTEMPTS} intentos
@@ -392,5 +393,9 @@ render();
   .color-btn,
   .peg-slot {
     touch-action: manipulation;
+  }
+
+  .pixelated {
+    image-rendering: pixelated;
   }
 </style>

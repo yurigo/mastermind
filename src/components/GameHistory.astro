@@ -3,7 +3,6 @@
 // Read-only browser of previously completed game snapshots.
 // Data is loaded client-side from localStorage so the page works as a
 // static Astro file without a server.
-import { COLORS, CODE_LENGTH } from '../scripts/mastermind.js';
 ---
 
 <main class="container mx-auto max-w-2xl px-4 py-8 flex flex-col gap-6">
@@ -29,8 +28,9 @@ import { COLORS, CODE_LENGTH } from '../scripts/mastermind.js';
 
 </main>
 
-<!-- Color data passed from Astro to the client script -->
-<script define:vars={{ COLORS, CODE_LENGTH }}>
+<script>
+import { COLORS, CODE_LENGTH } from '../scripts/mastermind.js';
+import { loadHistory } from '../scripts/history.js';
 
 // ─── Rendering helpers ────────────────────────────────────────────────────────
 
@@ -197,16 +197,7 @@ function renderHistory() {
   const listEl  = document.getElementById('historyList');
   const emptyEl = document.getElementById('emptyMsg');
 
-  let history = [];
-  try {
-    const raw = localStorage.getItem('mastermind_history');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) history = parsed;
-    }
-  } catch {
-    // Ignore
-  }
+  const history = loadHistory();
 
   if (history.length === 0) {
     emptyEl.textContent = 'Aún no hay partidas completadas. ¡Juega una y vuelve aquí!';

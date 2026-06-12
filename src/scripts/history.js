@@ -6,6 +6,19 @@
 const STORAGE_KEY = 'mastermind_history';
 
 /**
+ * Generates a unique identifier for a snapshot.
+ * Uses crypto.randomUUID() when available; falls back to a timestamp-based id.
+ *
+ * @returns {string}
+ */
+function generateId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+/**
  * Creates a snapshot of a completed game state.
  *
  * @param {{ secret: string[], attempts: object[], status: string }} state
@@ -13,7 +26,7 @@ const STORAGE_KEY = 'mastermind_history';
  */
 export function createSnapshot(state) {
   return {
-    id:           crypto.randomUUID(),
+    id:           generateId(),
     date:         new Date().toISOString(),
     secret:       state.secret,
     attempts:     state.attempts,

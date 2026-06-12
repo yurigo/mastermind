@@ -1,6 +1,6 @@
-# 🎯 Mastermind
+# 🃏 Mr. Mime
 
-Juego Mastermind implementado con **Astro**, **Tailwind CSS** y **JavaScript vanilla**. Todo funciona en el cliente — sin backend ni base de datos.
+Juego Mr. Mime (antes Mastermind) implementado con **Astro**, **Tailwind CSS** y **JavaScript vanilla**. Todo funciona en el cliente — sin backend ni base de datos.
 
 ## Estructura del proyecto
 
